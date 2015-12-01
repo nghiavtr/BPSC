@@ -1,0 +1,12 @@
+Package: BPSC
+Title: Beta-Poisson Model for Single-Cell RNA-seq Data Analyses
+Version: 0.99.0
+Authors@R: c(person("Trung Nghia", "Vu", email = "nghiavtr@gmail.com", role = c("aut", "cre")),
+    person("Mattias", "Rantalainen", email = "Mattias.Rantalainen@ki.se", role = c("aut")),    
+    person("Yudi", "Pawitan", email = "Yudi.Pawitan@ki.se", role = c("aut")))
+Description: Beta-Poisson model for single-cell RNA-seq data analyses.
+Depends: R (>= 3.2.1), stats, statmod, doParallel, foreach
+VignetteBuilder: knitr
+Suggests: knitr
+License: GPL-3
+LazyData: true
