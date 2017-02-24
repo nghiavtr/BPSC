@@ -9,7 +9,8 @@ What's new in version 0.99.1
 - Fix and improve vignette documents
 - Use quasi-Possion as the family function if the glm fitting (in function BPglm) with BPfam is not converged
 
-##### Older versions can be downloaded here: https://github.com/nghiavtr/BPSC/releases
+##### Older versions can be downloaded from here: https://github.com/nghiavtr/BPSC/releases
+- [Version 0.99.0](https://github.com/nghiavtr/BPSC/releases/download/v0.99.0/BPSC_0.99.0.tar.gz)
 
 #####Install from command line:
 ```R
