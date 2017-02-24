@@ -81,6 +81,7 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
         i.pval=NA
         i.tval=NA
         i.converged=NA
+        i.bpconverged=NA
         oo4=NA
 
         x=data[i,]
@@ -121,13 +122,22 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
             fit=glm(x~.,data=fdat,family=fam0)
             i.pval=summary(fit)$coefficients[coef,4]
             i.tval=summary(fit)$coefficients[coef,3]
-            i.converged=fit$converged
+            i.bpconverged=fit$converged
+            ##### if the fitting is not converged, use quassipoisson
+            i.converged=i.bpconverged
+            if (!i.converged){
+                fit=glm(x~.,data=fdat,family=quasipoisson)
+                i.pval=summary(fit)$coefficients[coef,4]
+                i.tval=summary(fit)$coefficients[coef,3]
+                i.converged=fit$converged
+            }            
         }, silent=TRUE) # keep silent if errors occur
 
         res=list();
         res[["PVAL"]]=i.pval
         res[["TVAL"]]=i.tval
         res[["CONVERGED"]]=i.converged
+        res[["BPCONVERGED"]]=i.bpconverged
         res[["ind"]]=i        
         if(keepFit) res[["fit"]]=fit else res[["fit"]]=NA
         res[["par"]]=par;
@@ -144,6 +154,7 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
             i.pval=NA
             i.tval=NA
             i.converged=NA
+            i.bpconverged=NA
             oo4=NA
 
             control.x=x[controlIds]
@@ -180,13 +191,22 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
                 fit=glm(x~.,data=fdat,family=fam0)
                 i.pval=summary(fit)$coefficients[coef,4]
                 i.tval=summary(fit)$coefficients[coef,3]
-                i.converged=fit$converged
+                i.bpconverged=fit$converged
+                ##### if the fitting is not converged, use quassipoisson
+                i.converged=i.bpconverged
+                if (!i.converged){
+                    fit=glm(x~.,data=fdat,family=quasipoisson)
+                    i.pval=summary(fit)$coefficients[coef,4]
+                    i.tval=summary(fit)$coefficients[coef,3]
+                    i.converged=fit$converged
+                }
             }, silent=TRUE) # keep silent if errors occur
 
             res=list();            
             res[["PVAL"]]=i.pval
             res[["TVAL"]]=i.tval
             res[["CONVERGED"]]=i.converged
+            res[["BPCONVERGED"]]=i.bpconverged
             res[["ind"]]=i
             if(keepFit) res[["fit"]]=fit else res[["fit"]]=NA
             res[["par"]]=par;

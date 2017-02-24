@@ -16,26 +16,120 @@
 \begin{document}
 
 
-\title{BPSC Package Introduction}
+\title{User guide for $BPSC$ package version 0.99.1}
 \author{Trung Nghia Vu}
 \maketitle
 
 \section{Introduction}
 Single-cell RNA-sequencing technology allows detection of gene
 expression in single-cell level. One typical feature of the data is
-a bimodality in the cellular distribution even for highly expressed
-genes, primarily caused by a proportion of non-expressing cells. The
-standard and the over-dispersed gamma-Poisson models that are
+a bimodality in the cellular distribution (see the figure below) even for highly expressed
+genes, primarily caused by a proportion of non-expressing cells.
+<<Example_fig1b_BP4, out.width='4.5in',fig.align='center', tidy=FALSE,message=F, warning=F, echo=FALSE>>=
+library(BPSC)
+hist(log2(rBP(10000,alp=0.2160247,bet=0.5989889,lam1=171.9596728,lam2=0.9094114)+1),prob=TRUE,col='grey',breaks=10, xlab="log2(expression+1)", main="")
+@
+\begin{scriptsize}
+The figure is produced by the data generated from the four-parameter beta-Poisson model in figure 1 of our recent study [1]: alp=0.2160247, bet=0.5989889, lam1=171.9596728, lam2=0.9094114
+\end{scriptsize}
+
+\bigskip
+
+The standard and the over-dispersed gamma-Poisson models that are
 commonly assumed in bulk-cell RNA-sequencing are not able to capture
-this property. In a recent study [1], we introduce a beta-Poisson mixture model to
+this property. In the recent study [1], we introduce a beta-Poisson mixture model to
 capture the bimodality of the single-cell RNA-seq gene expression
 distribution. We also propose a method that combines the beta-Poisson model with a generalized linear model 
 to do differential expression analysis for single-cell RNAseq data.
-
 In this document, we present practical uses of the beta-Poisson 
-model for model fitting and differential expression analysis.
+model for differential expression analysis and model fitting.
+
+
+\section {Differential expression analysis}
+BPSC integrates the beta-Poisson model and generalized linear model (BPglm) for differential expression analysis.
+For real datasets, the BPglm requires input from a dataset after normalized, for example by fragments per kilo-base per million (FPKM) or counts per million (cpm).
+In this document, we use beta-Poisson models to generate a small simulated dataset. Then, the function $BPglm()$ is applied to discover differentially expressed genes. 
+
+\subsection{Simulation dataset}
+In order to do differential expression analysis, we randomly generate a dataset consisting of two groups of 100 treated cells and 100 control cells.
+
+<<Data_generation, fig.keep='none', tidy=FALSE>>=
+library(BPSC)
+set.seed(2015)
+###Generate a random data matrix from a beta-poisson model
+#Set the number of genes
+N=100
+#Generate randomly the parameters of BP models
+alp=sample(100,N,replace=TRUE)*0.1;
+bet=sample(100,N,replace=TRUE)*0.1;
+lam1=sample(100,N,replace=TRUE)*10;
+lam2=sample(100,N,replace=TRUE)*0.01
+
+#Generate a control group
+n1=100
+control.mat=NULL
+for (i in 1:N) control.mat=rbind(control.mat,rBP(n1,alp=alp[i],
+	bet=bet[i],lam1=lam1[i],lam2=lam2[i]))
+
+#To create biological variation, we randomly set 10% as differentially expressed genes 
+#by simply replacing the parameter lam1 in treated group by a fold-change fc
+DE.ids= sample(N,N*0.1)
+fc=2.0
+lam1[DE.ids]=lam1[DE.ids] * fc
+
+#Generate a treated group
+n2=100
+treated.mat=NULL
+for (i in 1:N)treated.mat=rbind(treated.mat,rBP(n2,alp=alp[i],
+	bet=bet[i],lam1=lam1[i],lam2=lam2[i]))
+
+#Create a data set by merging the control group and the treated group
+bp.mat=cbind(control.mat,treated.mat)
+rownames(bp.mat)=c(1:nrow(bp.mat));
+colnames(bp.mat)=c(1:ncol(bp.mat))
+group=c(rep(1,ncol(control.mat)),rep(2,ncol(treated.mat)))
+@
+
+\subsection{Differential expression analysis using BPgml}
+Now we apply the BPglm model on the simulated dataset for differential expression analysis.
+
+<<bpglm_implementation, tidy=TRUE, out.width='4in',fig.align='center'>>=
+#First, choose IDs of all cells of the control group for estimating parameters of BP models
+controlIds=which(group==1)
+
+#Create a design matrix including the group labels. All batch effects can be also added here if they are available
+design=model.matrix(~group) 
+#Select the column in the design matrix corresponding to the coefficient (the group label) for the GLM model testing
+coef=2 
+
+#Run BPglm for differential expression analysis
+res=BPglm(data=bp.mat, controlIds=controlIds, design=design, coef=coef, estIntPar=FALSE, useParallel=FALSE) 
+#In this function, user can also set estIntPar=TRUE to have better estimated beta-Poisson models for the generalized linear model. However, a longer computational time is required.
+
+#Plot the p-value distribution
+hist(res$PVAL, breaks=20)
+#Summarize the resutls
+ss=summary(res)
+#Compare the discovered DE genes and the true DE genes predefined beforeward
+fdr=p.adjust(res$PVAL, method="BH")
+bpglm.DE.ids=which(fdr<=0.05)
+#Print the indices of the true DE genes:
+cat(sort(DE.ids))
+#Print the indices of the DE genes discovered by BPglm:
+cat(sort(bpglm.DE.ids))
+@
+
+\textbf{Parallel computing} \\
+To speedup the performance, we can run the functions in parallel by setting $useParallel$=TRUE in these functions. However, before running, we need to register the number of cores for the parallel. The performance is linear to the number of cores.
+
+<<Model_fitting_dataset3, tidy=FALSE, eval=FALSE>>=
+library(doParallel)
+registerDoParallel(cores=16)
+@
 
 \section{Model fitting}
+In this section, we present how to get the best fitted beta-Poisson model for gene expression of single-cell RNA-seq.
+The parameters of the beta-Poisson model are possibly linked to biological interpretation of burst size and burst frequency of the cell-level expression [1].
 First, we show an example of using beta-Poisson model to fit gene expresion of a single gene, 
 then further to a gene expression dataset consisting of multiple genes.
 \subsection{Fitting for a single gene}
@@ -103,86 +197,7 @@ MC.pval=getMCpval(bp.model.list=mat.res$bp.model.list,
 MC.pval
 @
 
-\textbf{Parallel computing} \\
-To speedup the performance, we can run the functions in parallel by setting $useParallel$=TRUE in these functions. However, before running, we need to register the number of cores for the parallel. The performance is linear to the number of cores.
 
-<<Model_fitting_dataset3, tidy=FALSE, eval=FALSE>>=
-library(doParallel)
-registerDoParallel(cores=16)
-@
-
-\section {Differential expression analysis}
-BPSC integrates the beta-Poisson model and generalized linear model (BPglm) for differential expression analysis.
-For real datasets, the BPglm requires input from a dataset after normalized, for example by fragments per kilo-base per million (FPKM) or counts per million (cpm).
-In this document, we use beta-Poisson models to generate a small simulated dataset. Then, the function $BPglm()$ is applied to discover differentially expressed genes. 
-
-\subsection{Simulation dataset}
-In order to do differential expression analysis, we randomly generate a dataset consisting of two groups of 100 treated cells and 100 control cells.
-
-<<Data_generation, fig.keep='none', tidy=FALSE>>=
-set.seed(2015)
-###Generate a random data matrix from a beta-poisson model
-#Set the number of genes
-N=100
-#Generate randomly the parameters of BP models
-alp=sample(100,N,replace=TRUE)*0.1;
-bet=sample(100,N,replace=TRUE)*0.1;
-lam1=sample(100,N,replace=TRUE)*10;
-lam2=sample(100,N,replace=TRUE)*0.01
-
-#Generate a control group
-n1=100
-control.mat=NULL
-for (i in 1:N) control.mat=rbind(control.mat,rBP(n1,alp=alp[i],
-	bet=bet[i],lam1=lam1[i],lam2=lam2[i]))
-
-#To create biological variation, we randomly set 10% as differentially expressed genes 
-#by simply replacing the parameter lam1 in treated group by a fold-change fc
-DE.ids= sample(N,N*0.1)
-fc=2.0
-lam1[DE.ids]=lam1[DE.ids] * fc
-
-#Generate a treated group
-n2=100
-treated.mat=NULL
-for (i in 1:N)treated.mat=rbind(treated.mat,rBP(n2,alp=alp[i],
-	bet=bet[i],lam1=lam1[i],lam2=lam2[i]))
-
-#Create a data set by merging the control group and the treated group
-bp.mat=cbind(control.mat,treated.mat)
-rownames(bp.mat)=c(1:nrow(bp.mat));
-colnames(bp.mat)=c(1:ncol(bp.mat))
-group=c(rep(1,ncol(control.mat)),rep(2,ncol(treated.mat)))
-@
-
-\subsection{Differential expression analysis using BPgml}
-Now we apply the BPglm model on the simulated dataset for differential expression analysis.
-
-<<bpglm_implementation, tidy=TRUE, out.width='4in',fig.align='center'>>=
-#First, choose IDs of all cells of the control group for estimating parameters of BP models
-controlIds=which(group==1)
-
-#Create a design matrix including the group labels. All batch effects can be also added here if they are available
-design=model.matrix(~group) 
-#Select the column in the design matrix corresponding to the coefficient (the group label) for the GLM model testing
-coef=2 
-
-#Run BPglm for differential expression analysis
-res=BPglm(data=bp.mat, controlIds=controlIds, design=design, coef=coef, estIntPar=FALSE) 
-#In this function, user can also set estIntPar=TRUE to have better estimated beta-Poisson models for the generalized linear model. However, a longer computational time is required.
-
-#Plot the p-value distribution
-hist(res$PVAL, breaks=20)
-#Summarize the resutls
-ss=summary(res)
-#Compare the discovered DE genes and the true DE genes predefined beforeward
-fdr=p.adjust(res$PVAL, method="BH")
-bpglm.DE.ids=which(fdr<=0.05)
-#Print the indices of the true DE genes:
-cat(sort(DE.ids))
-#Print the indices of the DE genes discovered by BPglm:
-cat(sort(bpglm.DE.ids))
-@
 \section{References}
-[1] Vu et al.,"Beta-Poisson model for single-cell RNA-seq data analyses", in preparation.
+1. Vu, Trung Nghia, Quin F. Wills, Krishna R. Kalari, Nifang Niu, Liewei Wang, Mattias Rantalainen, and Yudi Pawitan. "Beta-Poisson Model for Single-Cell RNA-Seq Data Analyses." Bioinformatics, April 19, 2016, btw202. doi:10.1093/bioinformatics/btw202.
 \end{document}

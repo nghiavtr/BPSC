@@ -1,2 +1,5 @@
+Date: 24 Feb 2017
+- Use quasi-Possion as the family function if the glm fitting with BPfam is not converged
+- Fix and improve vignette documents
 Date: 01 Dec 2015
 - First submission
