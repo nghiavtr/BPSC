@@ -12,8 +12,8 @@ Beta-Poisson model for single-cell RNA-seq data analyses
 \tabular{ll}{
 Package: \tab BPSC\cr
 Type: \tab Package\cr
-Version: \tab 0.99.1\cr
-Date: \tab 2017-02-24\cr
+Version: \tab 0.99.2\cr
+Date: \tab 2018-08-15\cr
 License: \tab GPL-3\cr
 LazyLoad: \tab yes\cr
 }

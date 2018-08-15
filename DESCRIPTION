@@ -1,6 +1,6 @@
 Package: BPSC
 Title: Beta-Poisson Model for Single-Cell RNA-seq Data Analyses
-Version: 0.99.1
+Version: 0.99.2
 Author: Trung Nghia Vu, Mattias Rantalainen and Yudi Pawitan
 Maintainer: Trung Nghia Vu <nghiavtr@gmail.com>
 Description: Beta-Poisson model for single-cell RNA-seq data analyses.

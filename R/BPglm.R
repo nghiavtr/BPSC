@@ -18,6 +18,7 @@
 #' @importFrom foreach foreach
 #' @importFrom foreach %dopar%
 #' @examples
+#' library("BPSC")
 #' set.seed(2015)
 #' ###Generate a random data matrix from a beta-poisson model
 #' #Set the number of genes
@@ -133,6 +134,10 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
             }            
         }, silent=TRUE) # keep silent if errors occur
 
+  ## Modification: if the fitting is not converged, use t.test
+  if(is.na(i.pval)) { i.pval = t.test(x ~ group)$p.value }
+  ## End modification
+
         res=list();
         res[["PVAL"]]=i.pval
         res[["TVAL"]]=i.tval
@@ -201,6 +206,10 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
                     i.converged=fit$converged
                 }
             }, silent=TRUE) # keep silent if errors occur
+
+  ## Modification: if the fitting is not converged, use t.test
+  if(is.na(i.pval)) { i.pval = t.test(x ~ group)$p.value }
+  ## End modification
 
             res=list();            
             res[["PVAL"]]=i.pval

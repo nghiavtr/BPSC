@@ -1,59 +1,50 @@
-\documentclass[11pt]{article}
-\usepackage{graphicx}
-\usepackage{geometry}
- \geometry{
- a4paper,
- total={170mm,257mm},
- left=20mm,
- top=20mm,
- }
+---
+title: "User guide for BPSC package version 0.99.2"
+author: "Trung Nghia Vu"
+date: "`r Sys.Date()`"
+output: html_document
 
+vignette: >
+  %\VignetteIndexEntry{BPSC Package Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+  
 
+```{r include = FALSE}
+library(BPSC)
+```
 
-%\VignetteIndexEntry{BPSC Package Introduction}
-%\VignetteEngine{knitr::knitr}
-
-\begin{document}
-
-
-\title{User guide for $BPSC$ package version 0.99.1}
-\author{Trung Nghia Vu}
-\maketitle
-
-\section{Introduction}
+## Introduction
 Single-cell RNA-sequencing technology allows detection of gene
 expression in single-cell level. One typical feature of the data is
 a bimodality in the cellular distribution (see the figure below) even for highly expressed
 genes, primarily caused by a proportion of non-expressing cells.
-<<Example_fig1b_BP4, out.width='4.5in',fig.align='center', tidy=FALSE,message=F, warning=F, echo=FALSE>>=
-library(BPSC)
-hist(log2(rBP(10000,alp=0.2160247,bet=0.5989889,lam1=171.9596728,lam2=0.9094114)+1),prob=TRUE,col='grey',breaks=10, xlab="log2(expression+1)", main="")
-@
-\begin{scriptsize}
-The figure is produced by the data generated from the four-parameter beta-Poisson model in figure 1 of our recent study [1]: alp=0.2160247, bet=0.5989889, lam1=171.9596728, lam2=0.9094114
-\end{scriptsize}
 
-\bigskip
+```{r include = TRUE}
+hist(log2(rBP(10000,alp=0.2160247,bet=0.5989889,lam1=171.9596728,lam2=0.9094114)+1),prob=TRUE,col='grey',breaks=10, xlab="log2(expression+1)", main="")
+```
+
+*The figure is produced by the data generated from the four-parameter beta-Poisson model in figure 1 of our recent study ([Vu et al., 2016](#BPSC_study)): alp=0.2160247, bet=0.5989889, lam1=171.9596728, lam2=0.9094114*
 
 The standard and the over-dispersed gamma-Poisson models that are
 commonly assumed in bulk-cell RNA-sequencing are not able to capture
 this property. In the recent study [1], we introduce a beta-Poisson mixture model to
 capture the bimodality of the single-cell RNA-seq gene expression
-distribution. We also propose a method that combines the beta-Poisson model with a generalized linear model 
-to do differential expression analysis for single-cell RNAseq data.
+distribution. We also propose a method that combines the beta-Poisson model with a generalized linear model to do differential expression analysis for single-cell RNAseq data.
 In this document, we present practical uses of the beta-Poisson 
 model for differential expression analysis and model fitting.
 
 
-\section {Differential expression analysis}
+## Differential expression analysis
 BPSC integrates the beta-Poisson model and generalized linear model (BPglm) for differential expression analysis.
 For real datasets, the BPglm requires input from a dataset after normalized, for example by fragments per kilo-base per million (FPKM) or counts per million (cpm).
-In this document, we use beta-Poisson models to generate a small simulated dataset. Then, the function $BPglm()$ is applied to discover differentially expressed genes. 
+In this document, we use beta-Poisson models to generate a small simulated dataset. Then, the function *BPglm()* is applied to discover differentially expressed genes. 
 
-\subsection{Simulation dataset}
+### Simulation dataset
 In order to do differential expression analysis, we randomly generate a dataset consisting of two groups of 100 treated cells and 100 control cells.
 
-<<Data_generation, fig.keep='none', tidy=FALSE>>=
+```{r include = TRUE}
 library(BPSC)
 set.seed(2015)
 ###Generate a random data matrix from a beta-poisson model
@@ -88,12 +79,12 @@ bp.mat=cbind(control.mat,treated.mat)
 rownames(bp.mat)=c(1:nrow(bp.mat));
 colnames(bp.mat)=c(1:ncol(bp.mat))
 group=c(rep(1,ncol(control.mat)),rep(2,ncol(treated.mat)))
-@
+```
 
-\subsection{Differential expression analysis using BPgml}
-Now we apply the BPglm model on the simulated dataset for differential expression analysis.
+### Differential expression analysis using *BPgml*
+Now we apply the *BPglm* model on the simulated dataset for differential expression analysis.
 
-<<bpglm_implementation, tidy=TRUE, out.width='4in',fig.align='center'>>=
+```{r include = TRUE}
 #First, choose IDs of all cells of the control group for estimating parameters of BP models
 controlIds=which(group==1)
 
@@ -117,23 +108,24 @@ bpglm.DE.ids=which(fdr<=0.05)
 cat(sort(DE.ids))
 #Print the indices of the DE genes discovered by BPglm:
 cat(sort(bpglm.DE.ids))
-@
+```
 
-\textbf{Parallel computing} \\
-To speedup the performance, we can run the functions in parallel by setting $useParallel$=TRUE in these functions. However, before running, we need to register the number of cores for the parallel. The performance is linear to the number of cores.
+#### Parallel computing
+To speedup the performance, we can run the functions in parallel by setting *useParallel*=TRUE in these functions. However, before running, we need to register the number of cores for the parallel. The performance is linear to the number of cores.
 
-<<Model_fitting_dataset3, tidy=FALSE, eval=FALSE>>=
+```{r include = TRUE}
 library(doParallel)
 registerDoParallel(cores=16)
-@
+```
 
-\section{Model fitting}
+## Model fitting
 In this section, we present how to get the best fitted beta-Poisson model for gene expression of single-cell RNA-seq.
 The parameters of the beta-Poisson model are possibly linked to biological interpretation of burst size and burst frequency of the cell-level expression [1].
 First, we show an example of using beta-Poisson model to fit gene expresion of a single gene, 
 then further to a gene expression dataset consisting of multiple genes.
-\subsection{Fitting for a single gene}
-<<Model_fitting_single_gene, tidy=FALSE,out.width='4in',fig.align='center',message=F, warning=F>>=
+
+### Fitting for a single gene
+```{r include = TRUE}
 library(BPSC)
 set.seed(2015)
 #Create a simulated gene expression by randomly generating 100 data points 
@@ -158,13 +150,14 @@ hist(MCnull.res$X2,xlab="goodness-of-fit statistic",
 main="Monte-Carlo null distribution",breaks=20, prob=TRUE)
 lines(c(res$X2,res$X2),c(0,par("usr")[4]),
       col="blue",lwd=2.0)
-@
-Thus, the estimated model has a well MC p-value, indicating that the model has a good fit.
+```
 
-\subsection{Fitting for a gene expression dataset}
-We also can use $estimateBPMatrix()$ function to do fitting for a data matrix of gene expression of multiple genes. We start by creating a simulated dataset containing 10 genes.
+Thus, the estimated model obatins a well MC p-value (*MCpval*), indicating that the model has a good fit.
 
-<<Model_dataset_generation, tidy=FALSE, eval=TRUE>>=
+### Fitting for a gene expression dataset
+We also can use *estimateBPMatrix()* function to do fitting for a data matrix of gene expression of multiple genes. We start by creating a simulated dataset containing 10 genes.
+
+```{r include = TRUE}
 set.seed(2015)
 #create random data matrix from a beta-poisson model
 N=10
@@ -176,28 +169,27 @@ n=100
 bp.mat=NULL
 for (i in 1:N)
   bp.mat=rbind(bp.mat,rBP(n,alp=alp[i],bet=bet[i],lam1=lam1[i],lam2=lam2[i]))
-@
+```
 
 Then, we do fitting for this dataset.
 
-<<Model_fitting_dataset, tidy=FALSE, eval=TRUE>>=
+```{r include = TRUE}
 #Estimate parameters from the data set
 mat.res=estimateBPMatrix(bp.mat,para.num=4,fout=NULL,estIntPar=FALSE,useParallel=FALSE)
-@
-Note that one can use $estIntPar$=TRUE to estimate initial parameters for the beta-Poisson models from non-zero expressed values to select better results. However, that requires longer overall computational time.
+```
+Note that one can use *estIntPar*=TRUE to estimate initial parameters for the beta-Poisson models from non-zero expressed values to select better results. However, that requires longer overall computational time.
 
-We also can use $getBPMCnullmatrix()$ function to massivelly generate the Monte-Carlo null distributions for all the BP models of the dataset, then calculate Monte-Carlo p-values.
+We also can use *getBPMCnullmatrix()* function to massivelly generate the Monte-Carlo null distributions for all the BP models of the dataset, then calculate Monte-Carlo p-values.
 
-<<Model_fitting_dataset2, tidy=FALSE, eval=TRUE>>=
+```{r include = TRUE}
 MCnullmatrix.res=getBPMCnullmatrix(bp.model.list=mat.res$bp.model.list,fout=NULL,
                                    sim.num=100,useParallel=FALSE)
 #Get Monte-Carlo p-values
-MC.pval=getMCpval(bp.model.list=mat.res$bp.model.list,
+MCpval=getMCpval(bp.model.list=mat.res$bp.model.list,
                   MCdis.list=MCnullmatrix.res$MCdis.list)
-MC.pval
-@
+MCpval
+```
 
+## References
+<a id="BPSC_study"> Vu, Trung Nghia, Quin F. Wills, Krishna R. Kalari, Nifang Niu, Liewei Wang, Mattias Rantalainen, and Yudi Pawitan. "Beta-Poisson Model for Single-Cell RNA-Seq Data Analyses." Bioinformatics, April 19, 2016, btw202. doi:10.1093/bioinformatics/btw202. </a>
 
-\section{References}
-1. Vu, Trung Nghia, Quin F. Wills, Krishna R. Kalari, Nifang Niu, Liewei Wang, Mattias Rantalainen, and Yudi Pawitan. "Beta-Poisson Model for Single-Cell RNA-Seq Data Analyses." Bioinformatics, April 19, 2016, btw202. doi:10.1093/bioinformatics/btw202.
-\end{document}

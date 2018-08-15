@@ -1,3 +1,6 @@
+Date: 15 Aug 2018
+- Use t-test for weird isoform data, for example all samples of the control group are unexpressed, to avoid NA results in BPglm. Great thanks to Tian Mou for the contribution!
+- Use RMarkdown instead of Sweave for vignette document.
 Date: 24 Feb 2017
 - Use quasi-Possion as the family function if the glm fitting with BPfam is not converged
 - Fix and improve vignette documents
