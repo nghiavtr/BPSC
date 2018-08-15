@@ -8,6 +8,7 @@
 What's new in version 0.99.2
 - Use t-test for weird isoform data, for example all samples of the control group are unexpressed, to avoid NA results in BPglm. Great thanks to Tian Mou for the contribution!
 - Use RMarkdown instead of Sweave for vignette document.
+
 What's new in version 0.99.1
 - Fix and improve vignette documents
 - Use quasi-Possion as the family function if the glm fitting (in function BPglm) with BPfam is not converged
