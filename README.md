@@ -6,7 +6,7 @@
 [Version 0.99.2](https://github.com/nghiavtr/BPSC/releases/download/v0.99.2/BPSC_0.99.2.tar.gz)
 
 What's new in version 0.99.2
-- Use t-test for weird isoform data, for example all samples of the control group are unexpressed, to avoid NA results in BPglm. Great thanks to Tian Mou for the contribution!
+- Fix issues for weird isoform data, for example all samples of the control group are unexpressed, to avoid NA results in BPglm. Great thanks to Tian Mou for the contribution!
 - Use RMarkdown instead of Sweave for vignette document.
 
 What's new in version 0.99.1

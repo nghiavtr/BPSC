@@ -134,9 +134,24 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
             }            
         }, silent=TRUE) # keep silent if errors occur
 
-  ## Modification: if the fitting is not converged, use t.test
-  if(is.na(i.pval)) { i.pval = t.test(x ~ group)$p.value }
-  ## End modification
+        # Modification: if the fitting is not converged or all samples of one group are all unexpressed, use t.test via lm
+        x1=x; x1[x<minExp]=0
+        tcount=tapply(x1,design[,coef],sum)
+        if (sum(tcount==0)>0) i.pval=NA
+        if(is.na(i.pval)) {
+            design_group=design
+            colnames(design_group)[coef]="group"
+            fdat_norm=data.frame(x=log2(x+1))
+            fdat_norm=cbind(fdat_norm,design_group)
+            fdat_norm=fdat_norm[,-2] #remove intercept
+            fit=lm(group~.,data=fdat_norm)
+            #i.pval = t.test(x ~ group)$p.value
+            i.pval=summary(fit)$coefficients[2,4]
+            i.tval=summary(fit)$coefficients[2,3]
+            i.converged=NA #no information
+            #t.test(x ~ group,data=fdat_norm)$p.value
+        }
+        # End modification
 
         res=list();
         res[["PVAL"]]=i.pval
@@ -207,10 +222,24 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
                 }
             }, silent=TRUE) # keep silent if errors occur
 
-  ## Modification: if the fitting is not converged, use t.test
-  if(is.na(i.pval)) { i.pval = t.test(x ~ group)$p.value }
-  ## End modification
-
+        # Modification: if the fitting is not converged or all samples of one group are all unexpressed, use t.test via lm
+        x1=x; x1[x<minExp]=0
+        tcount=tapply(x1,design[,coef],sum)
+        if (sum(tcount==0)>0) i.pval=NA
+        if(is.na(i.pval)) {
+            design_group=design
+            colnames(design_group)[coef]="group"
+            fdat_norm=data.frame(x=log2(x+1))
+            fdat_norm=cbind(fdat_norm,design_group)
+            fdat_norm=fdat_norm[,-2] #remove intercept
+            fit=lm(group~.,data=fdat_norm)
+            #i.pval = t.test(x ~ group)$p.value
+            i.pval=summary(fit)$coefficients[2,4]
+            i.tval=summary(fit)$coefficients[2,3]
+            i.converged=NA #no information
+            #t.test(x ~ group,data=fdat_norm)$p.value
+        }
+        # End modification
             res=list();            
             res[["PVAL"]]=i.pval
             res[["TVAL"]]=i.tval
