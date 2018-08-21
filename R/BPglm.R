@@ -84,72 +84,89 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
         i.converged=NA
         i.bpconverged=NA
         oo4=NA
+        par=NA
 
         x=data[i,]
-        control.x=x[controlIds]
-        bpstat=control.x
-        if (!is.null(extreme.quant)) bpstat=control.x[control.x <= quantile(control.x,prob=extreme.quant)]         
-        bpstat[bpstat<minExp]=0
+        #check if data is weird
+        gvar=tapply(x,design[,coef],var)
+        lowvar=sapply(gvar, function(z) sum(z<0.1*gvar))
+        isNearZeroVariance=sum(lowvar>0)>0
 
-        par=getInitParam(bpstat,para.num=4)
-        if (sum(bpstat>0) > 0.05*length(bpstat)){
-            ##### beta-Poisson estimation for control group
-            oo4=estimateBP(bpstat,para.num=4,tbreak.num=tbreak.num,break.thres=break.thres)
+        if (!isNearZeroVariance){
+            control.x=x[controlIds]
+            bpstat=control.x
+            if (!is.null(extreme.quant)) bpstat=control.x[control.x <= quantile(control.x,prob=extreme.quant)]         
+            bpstat[bpstat<minExp]=0
 
-            if (estIntPar){
-                bpstat2=bpstat[bpstat>0]
-                mypar=getInitParam(bpstat2,para.num=4)
-                oo.tmp=estimateBP(bpstat2,para.num=4,tbreak.num=tbreak.num,break.thres=break.thres,useExt=useExt,param0=mypar)                
-                if (!is.na(oo.tmp$PVAL)) mypar=oo.tmp$par
-                oo4e=estimateBP(bpstat,para.num=4,tbreak.num=tbreak.num,break.thres=break.thres,useExt=useExt,param0=mypar)
-                # select the better model
-                if (is.na(oo4$PVAL)) oo4=oo4e
-                else {
-                    if (!is.na(oo4e$PVAL) && oo4e$PVAL > oo4$PVAL && oo4e$X2>=0) oo4=oo4e              
+            par=getInitParam(bpstat,para.num=4)
+            if (sum(bpstat>0) > 0.05*length(bpstat)){
+                ##### beta-Poisson estimation for control group
+                oo4=estimateBP(bpstat,para.num=4,tbreak.num=tbreak.num,break.thres=break.thres)
+
+                if (estIntPar){
+                    bpstat2=bpstat[bpstat>0]
+                    mypar=getInitParam(bpstat2,para.num=4)
+                    oo.tmp=estimateBP(bpstat2,para.num=4,tbreak.num=tbreak.num,break.thres=break.thres,useExt=useExt,param0=mypar)                
+                    if (!is.na(oo.tmp$PVAL)) mypar=oo.tmp$par
+                    oo4e=estimateBP(bpstat,para.num=4,tbreak.num=tbreak.num,break.thres=break.thres,useExt=useExt,param0=mypar)
+                    # select the better model
+                    if (is.na(oo4$PVAL)) oo4=oo4e
+                    else {
+                        if (!is.na(oo4e$PVAL) && oo4e$PVAL > oo4$PVAL && oo4e$X2>=0) oo4=oo4e              
+                    }
+
                 }
-
+                par=oo4$par
             }
-            par=oo4$par
-        }
 
-        ##### start GLM
-        fdat=data.frame(x=x,design[,-1])
-        colnames(fdat)=c("x",colnames(design)[-1])
+            ##### start GLM
+            fdat=data.frame(x=x,design[,-1])
+            colnames(fdat)=c("x",colnames(design)[-1])
 
-        try({
-            alp=par[1];bet=par[2];lam1=par[3];lam2=par[4]
-            fam0=do.call("BPfam", list(alp=alp, bet=bet, lam1=lam1, lam2=lam2, link = "log"))
+            try({
+                alp=par[1];bet=par[2];lam1=par[3];lam2=par[4]
+                fam0=do.call("BPfam", list(alp=alp, bet=bet, lam1=lam1, lam2=lam2, link = "log"))
 
-            fit=glm(x~.,data=fdat,family=fam0)
-            i.pval=summary(fit)$coefficients[coef,4]
-            i.tval=summary(fit)$coefficients[coef,3]
-            i.bpconverged=fit$converged
-            ##### if the fitting is not converged, use quassipoisson
-            i.converged=i.bpconverged
-            if (!i.converged){
-                fit=glm(x~.,data=fdat,family=quasipoisson)
+                fit=glm(x~.,data=fdat,family=fam0)
                 i.pval=summary(fit)$coefficients[coef,4]
                 i.tval=summary(fit)$coefficients[coef,3]
-                i.converged=fit$converged
-            }            
-        }, silent=TRUE) # keep silent if errors occur
+                i.bpconverged=fit$converged
+                ##### if the fitting is not converged, use quassipoisson
+                i.converged=i.bpconverged
+                if (!i.converged){
+                    fit=glm(x~.,data=fdat,family=quasipoisson)
+                    i.pval=summary(fit)$coefficients[coef,4]
+                    i.tval=summary(fit)$coefficients[coef,3]
+                    i.converged=fit$converged
+                }            
+            }, silent=TRUE) # keep silent if errors occur
+        }
 
-        # Modification: if the fitting is not converged or all samples of one group are all unexpressed, use t.test via lm
-        x1=x; x1[x<minExp]=0
-        tcount=tapply(x1,design[,coef],sum)
-        if (sum(tcount==0)>0) i.pval=NA
+        # Modification: if the fitting is not converged or all samples of one group are all unexpressed, use t.test with unequal variance or Analysis of Variance
+        if (isNearZeroVariance) i.pval=NA
         if(is.na(i.pval)) {
             design_group=design
             colnames(design_group)[coef]="group"
             fdat_norm=data.frame(x=log2(x+1))
             fdat_norm=cbind(fdat_norm,design_group)
             fdat_norm=fdat_norm[,-2] #remove intercept
-            fit=lm(group~.,data=fdat_norm)
+            #fit=lm(group~.,data=fdat_norm)
+            #i.pval=summary(fit)$coefficients[2,4]
+            #i.tval=summary(fit)$coefficients[2,3]
+            #i.converged=NA #no information
+            gNum=length(unique(fdat_norm$group))
+            if (gNum==2){ #use t-test
+                gtest=t.test(x ~ group,data=fdat_norm)
+                i.pval=gtest$p.value
+                i.tval=gtest$statistic
+                i.converged=NA #no information
+            }else{ #use aov
+                gtest=aov(x ~ group,data=fdat_norm)
+                i.pval=summary(gtest)[[1]][["Pr(>F)"]][1]
+                i.tval=summary(gtest)[[1]][["F value"]][1]
+                i.converged=NA #no information
+            }
             #i.pval = t.test(x ~ group)$p.value
-            i.pval=summary(fit)$coefficients[2,4]
-            i.tval=summary(fit)$coefficients[2,3]
-            i.converged=NA #no information
-            #t.test(x ~ group,data=fdat_norm)$p.value
         }
         # End modification
 
@@ -167,16 +184,23 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
     } # end of foreach
 
     }else{
-        fitRes=ind=TVAL=PVAL=NULL;
-        for (i in 1:nrow(data)){
-            x=data[i,]
-            fit=NA
-            i.pval=NA
-            i.tval=NA
-            i.converged=NA
-            i.bpconverged=NA
-            oo4=NA
+    fitRes=ind=TVAL=PVAL=NULL;
+    for (i in 1:nrow(data)){            
+        fit=NA
+        i.pval=NA
+        i.tval=NA
+        i.converged=NA
+        i.bpconverged=NA
+        oo4=NA
+        par=NA
 
+        x=data[i,]
+        #check if data is weird
+        gvar=tapply(x,design[,coef],var)
+        lowvar=sapply(gvar, function(z) sum(z<0.1*gvar))
+        isNearZeroVariance=sum(lowvar>0)>0
+
+        if (!isNearZeroVariance){
             control.x=x[controlIds]
             bpstat=control.x
             if (!is.null(extreme.quant)) bpstat=control.x[control.x <= quantile(control.x,prob=extreme.quant)]         
@@ -221,37 +245,47 @@ BPglm <- function (data, controlIds, design, coef=2, keepFit=FALSE,minExp=1e-4, 
                     i.converged=fit$converged
                 }
             }, silent=TRUE) # keep silent if errors occur
+        }
 
-        # Modification: if the fitting is not converged or all samples of one group are all unexpressed, use t.test via lm
-        x1=x; x1[x<minExp]=0
-        tcount=tapply(x1,design[,coef],sum)
-        if (sum(tcount==0)>0) i.pval=NA
+        # Modification: if the fitting is not converged or all samples of one group are all unexpressed, use t.test with unequal variance or Analysis of Variance
+        if (isNearZeroVariance) i.pval=NA
         if(is.na(i.pval)) {
             design_group=design
             colnames(design_group)[coef]="group"
             fdat_norm=data.frame(x=log2(x+1))
             fdat_norm=cbind(fdat_norm,design_group)
             fdat_norm=fdat_norm[,-2] #remove intercept
-            fit=lm(group~.,data=fdat_norm)
+            #fit=lm(group~.,data=fdat_norm)
+            #i.pval=summary(fit)$coefficients[2,4]
+            #i.tval=summary(fit)$coefficients[2,3]
+            #i.converged=NA #no information
+            gNum=length(unique(fdat_norm$group))
+            if (gNum==2){ #use t-test
+                gtest=t.test(x ~ group,data=fdat_norm)
+                i.pval=gtest$p.value
+                i.tval=gtest$statistic
+                i.converged=NA #no information
+            }else{ #use aov
+                gtest=aov(x ~ group,data=fdat_norm)
+                i.pval=summary(gtest)[[1]][["Pr(>F)"]][1]
+                i.tval=summary(gtest)[[1]][["F value"]][1]
+                i.converged=NA #no information
+            }
             #i.pval = t.test(x ~ group)$p.value
-            i.pval=summary(fit)$coefficients[2,4]
-            i.tval=summary(fit)$coefficients[2,3]
-            i.converged=NA #no information
-            #t.test(x ~ group,data=fdat_norm)$p.value
         }
-        # End modification
-            res=list();            
-            res[["PVAL"]]=i.pval
-            res[["TVAL"]]=i.tval
-            res[["CONVERGED"]]=i.converged
-            res[["BPCONVERGED"]]=i.bpconverged
-            res[["ind"]]=i
-            if(keepFit) res[["fit"]]=fit else res[["fit"]]=NA
-            res[["par"]]=par;
-            res[["oo4"]]=oo4;
+        # End modification    
+    res=list();            
+    res[["PVAL"]]=i.pval
+    res[["TVAL"]]=i.tval
+    res[["CONVERGED"]]=i.converged
+    res[["BPCONVERGED"]]=i.bpconverged
+    res[["ind"]]=i
+    if(keepFit) res[["fit"]]=fit else res[["fit"]]=NA
+    res[["par"]]=par;
+    res[["oo4"]]=oo4;
 
-            fitRes=c(fitRes,res)            
-        }
+    fitRes=c(fitRes,res)            
+    }
     }
 
     ind=unlist(fitRes[which(names(fitRes)=="ind")])

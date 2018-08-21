@@ -10,3 +10,5 @@ Suggests: knitr
 License: GPL-3
 LazyData: true
 RoxygenNote: 6.0.1
+NeedsCompilation: no
+Packaged: 2018-08-21 04:05:55 UTC; nghiavtr
