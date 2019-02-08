@@ -30,7 +30,7 @@ statmod, doParallel
 ```R
 install.packages("devtools")
 library("devtools")
-install_github("BPSC","nghiavtr")
+install_github("nghiavtr/BPSC")
 library("BPSC")
 ```
 # View vignette for user guide
